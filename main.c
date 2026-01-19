@@ -15,6 +15,45 @@ void show_usages_exit(char *reason)
 	exit(1);
 }
 
+void assemble_bf(){
+	// call NASM and assemble the code
+
+	pid_t pid_nasm = fork();
+	
+	if (pid_nasm == 0){
+		execlp(
+				"nasm",
+				"nasm",
+				"-felf64",
+				"output.asm",
+				"-o", "output.o",
+				NULL
+		      );
+		perror("Error in NASM");
+	}else{
+		wait(NULL);
+	}
+}
+
+void link_bf(){
+	// call LD and link the code TODO: use pipline to avoid creating temp file
+	pid_t pid_linker = fork();
+	
+	if(pid_linker == 0){
+		execlp(
+				"ld",
+				"ld",
+				"output.o",
+				"-o", "test_bf",
+				NULL
+		      );
+		perror("linker failed");
+	}else{
+		wait(NULL);
+	}
+
+}
+
 int main(int argc, char *argv[])
 {
 	if (argc < 2) show_usages_exit("");
@@ -34,7 +73,6 @@ int main(int argc, char *argv[])
 	
 	// combine header and footer code
 	strcat(code_buffer,CODE_HEADER CODE_FOOTER);
-
 	printf("%s",code_buffer);
 
 	// save assembly file
@@ -44,38 +82,8 @@ int main(int argc, char *argv[])
 	fprintf(fp2,"%s", code_buffer);
 	fclose(fp2);
 
-	// call NASM and assemble the code
-	pid_t pid_nasm = fork();
+	assemble_bf();
+	link_bf();
 	
-	if (pid_nasm == 0){
-		execlp(
-				"nasm",
-				"nasm",
-				"-felf64",
-				"output.asm",
-				"-o", "output.o",
-				NULL
-		      );
-		perror("Error in NASM");
-	}else{
-		wait(NULL);
-	}
-
-	// call LD and link the code
-	pid_t pid_linker = fork();
-	
-	if(pid_linker == 0){
-		execlp(
-				"ld",
-				"ld",
-				"output.o",
-				"-o", "test_bf",
-				NULL
-		      );
-		perror("linker failed");
-	}else{
-		wait(NULL);
-	}
-
 	return 0;
 }
