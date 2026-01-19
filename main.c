@@ -7,27 +7,30 @@
 #define CODE_LENGTH 100000
 
 #define CODE_HEADER "global _start\n\
-					section .bss\n\
-					tape resb 30000\n\
-					section .text\n\
-					print:\n\
-					mov rax,1\n\
-					mov rdi,1 \n\
-					mov rsi,[tape_pointer]\n\
-					mov rdx,1\n\
-					syscall\n\
-					ret\n\n\
-					_start:\n\
-					tape_pointer dq tape\n"
+section .bss\n\
+tape resb 30000\n\
+section .text\n\
+print:\n\
+    mov rax, 1\n\
+    mov rdi, 1\n\
+    mov rsi, r12\n\
+    mov rdx, 1\n\
+    syscall\n\
+    ret\n\n\
+_start:\n\
+lea r12, [tape]\n"
 
 #define CODE_FOOTER "mov rax,60\nmov rdi,0\nsyscall\n\n"
 
 // lexemes
-#define LEX_RIGHT_ANGLE "mov rax, [tape_pointer]\ninc rax\n mov [tape_pointer], rax\n"
-#define LEX_LEFT_ANGLE "mov rax, [tape_pointer]\ndec rax\n mov [tape_pointer], rax\n"
-#define LEX_PLUS "mov rax, [tape_pointer]\ninc byte [rax]\n"
-#define LEX_MINUS "mov rax, [tape_pointer]\ndec byte [rax]\n"
-#define LEX_DOT "call print\n"
+#define LEX_RIGHT_ANGLE "inc r12\n"
+#define LEX_LEFT_ANGLE  "dec r12\\n"
+#define LEX_PLUS        "inc byte [r12]\n"
+#define LEX_MINUS       "dec byte [r12]\n"
+#define LEX_DOT         "call print\n"
+#define LEX_LEFT_BRACKET "cmp byte [r12],0\nje "
+#define LEX_RIGHT_BRACKET "cmp byte [r12],0\njne start_label"
+
 
 void show_usages_exit(char *reason)
 {
@@ -89,6 +92,9 @@ int main(int argc, char *argv[])
 	// combine header
 	strcat(code_buffer,CODE_HEADER);
 
+	// label counters
+	size_t label_counter = 1;
+
 	while((buffer = fgetc(fp)) != EOF ){
 		switch (buffer)
 		{
@@ -107,6 +113,43 @@ int main(int argc, char *argv[])
 		case '.':
 			strcat(code_buffer,LEX_DOT);
 			break;
+		case '[':
+			// itoa
+			int length = snprintf(NULL,0,"%ld",label_counter);
+			char *label_index = malloc(length+1);
+			snprintf(label_index,length+1,"%ld",label_counter);
+			
+			strcat(code_buffer, "start_label");
+			strcat(code_buffer,label_index);
+			strcat(code_buffer,":\n");
+			strcat(code_buffer,LEX_LEFT_BRACKET);
+			strcat(code_buffer,"label");
+
+			
+			strcat(code_buffer,label_index);
+			strcat(code_buffer,"\n");
+			free(label_index);
+			label_counter +=1;
+
+			break;
+
+		case ']':
+			// itoa
+			label_counter -=1;
+			int length2 = snprintf(NULL,0,"%ld",label_counter);
+			char *label_index2 = malloc(length2+1);
+			snprintf(label_index2,length2+1,"%ld",label_counter);
+
+			strcat(code_buffer,LEX_RIGHT_BRACKET);
+			strcat(code_buffer,label_index2);
+			strcat(code_buffer,"\n");
+			strcat(code_buffer,"label");
+			strcat(code_buffer,label_index2);
+			strcat(code_buffer,":\n");
+			free(label_index2);
+			
+			
+			break;
 		}
 	}
 	fclose(fp);
@@ -118,7 +161,7 @@ int main(int argc, char *argv[])
 
 	// save assembly file
 	FILE *fp2 = fopen("output.asm","w");
-	if(fp==NULL) show_usages_exit("Output file couldn't be opened");
+	if(fp2==NULL) show_usages_exit("Output file couldn't be opened");
 	
 	fprintf(fp2,"%s", code_buffer);
 	fclose(fp2);
