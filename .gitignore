@@ -2,4 +2,5 @@
 *.env
 *.o
 /bf
-
+/test_bf
+test.asm

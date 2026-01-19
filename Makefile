@@ -4,7 +4,7 @@ CFLAGS = -Wall -Wextra -O2
 all: main
 
 main: main.c
-	$(CC) $(CFLAGS) main.c -o main
+	$(CC) $(CFLAGS) main.c -o bf
 
-clean:
-	rm -f main
+clean: 
+	rm -f main bf

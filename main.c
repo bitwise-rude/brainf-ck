@@ -6,8 +6,8 @@
 
 #define CODE_LENGTH 100000
 
-#define CODE_HEADER "global _start\nsection .text\n_start:\n"
-#define CODE_FOOTER "mov rax,60\nmov rdi,0\nsyscall\n"
+#define CODE_HEADER "global _start\nsection .bss\ntape resb 30000\nsection .text\n_start:\ntape_pointer dq tape\n"
+#define CODE_FOOTER "mov rax,60\nmov rdi,0\nsyscall\n\n\n"
 
 void show_usages_exit(char *reason)
 {
@@ -35,7 +35,7 @@ void assemble_bf(){
 	}
 }
 
-void link_bf(){
+void link_bf(){	
 	// call LD and link the code TODO: use pipline to avoid creating temp file
 	pid_t pid_linker = fork();
 	
@@ -58,7 +58,7 @@ int main(int argc, char *argv[])
 {
 	if (argc < 2) show_usages_exit("");
 	
-	// read file 
+	// read file how brain
 	FILE *fp = fopen(argv[1],"r");
 	if (fp == NULL) show_usages_exit("File Not Found");
 
