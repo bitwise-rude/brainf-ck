@@ -6,8 +6,28 @@
 
 #define CODE_LENGTH 100000
 
-#define CODE_HEADER "global _start\nsection .bss\ntape resb 30000\nsection .text\n_start:\ntape_pointer dq tape\n"
-#define CODE_FOOTER "mov rax,60\nmov rdi,0\nsyscall\n\n\n"
+#define CODE_HEADER "global _start\n\
+					section .bss\n\
+					tape resb 30000\n\
+					section .text\n\
+					print:\n\
+					mov rax,1\n\
+					mov rdi,1 \n\
+					mov rsi,[tape_pointer]\n\
+					mov rdx,1\n\
+					syscall\n\
+					ret\n\n\
+					_start:\n\
+					tape_pointer dq tape\n"
+
+#define CODE_FOOTER "mov rax,60\nmov rdi,0\nsyscall\n\n"
+
+// lexemes
+#define LEX_RIGHT_ANGLE "mov rax, [tape_pointer]\ninc rax\n mov [tape_pointer], rax\n"
+#define LEX_LEFT_ANGLE "mov rax, [tape_pointer]\ndec rax\n mov [tape_pointer], rax\n"
+#define LEX_PLUS "mov rax, [tape_pointer]\ninc byte [rax]\n"
+#define LEX_MINUS "mov rax, [tape_pointer]\ndec byte [rax]\n"
+#define LEX_DOT "call print\n"
 
 void show_usages_exit(char *reason)
 {
@@ -66,13 +86,34 @@ int main(int argc, char *argv[])
 	char *code_buffer = (char *) malloc(CODE_LENGTH);
 	*code_buffer = '\0';
 
+	// combine header
+	strcat(code_buffer,CODE_HEADER);
+
 	while((buffer = fgetc(fp)) != EOF ){
+		switch (buffer)
+		{
+		case '>':
+			strcat(code_buffer,LEX_RIGHT_ANGLE);
+			break;
+		case '<':
+			strcat(code_buffer,LEX_LEFT_ANGLE);
+			break;
+		case '+':
+			strcat(code_buffer,LEX_PLUS);
+			break;
+		case '-':
+			strcat(code_buffer,LEX_MINUS);
+			break;
+		case '.':
+			strcat(code_buffer,LEX_DOT);
+			break;
+		}
 	}
 	fclose(fp);
 	
 	
-	// combine header and footer code
-	strcat(code_buffer,CODE_HEADER CODE_FOOTER);
+	// combien footer
+	strcat(code_buffer,CODE_FOOTER);
 	printf("%s",code_buffer);
 
 	// save assembly file
