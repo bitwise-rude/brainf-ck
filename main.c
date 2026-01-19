@@ -18,6 +18,13 @@ print:\n\
     mov rdx, 1\n\
     syscall\n\
     ret\n\n\
+input:\n\
+    mov rax, 0\n\
+    mov rdi, 0\n\
+    mov rsi, r12\n\
+    mov rdx, 1\n\
+    syscall\n\
+    ret\n\n\
 _start:\n\
 lea r12, [tape]\n"
 
@@ -29,6 +36,7 @@ lea r12, [tape]\n"
 #define LEX_PLUS        "inc byte [r12]\n"
 #define LEX_MINUS       "dec byte [r12]\n"
 #define LEX_DOT         "call print\n"
+#define LEX_COMMA		"call input\n"
 #define LEX_LEFT_BRACKET "cmp byte [r12],0\nje "
 #define LEX_RIGHT_BRACKET "cmp byte [r12],0\njne start_label"
 
@@ -114,6 +122,9 @@ int main(int argc, char *argv[])
 			break;
 		case '.':
 			strcat(code_buffer,LEX_DOT);
+			break;
+		case ',':
+			strcat(code_buffer,LEX_COMMA);
 			break;
 		case '[':
 			// itoa
