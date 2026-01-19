@@ -3,6 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <stdbool.h>
 
 #define CODE_LENGTH 100000
 
@@ -24,7 +25,7 @@ lea r12, [tape]\n"
 
 // lexemes
 #define LEX_RIGHT_ANGLE "inc r12\n"
-#define LEX_LEFT_ANGLE  "dec r12\\n"
+#define LEX_LEFT_ANGLE  "dec r12\n"
 #define LEX_PLUS        "inc byte [r12]\n"
 #define LEX_MINUS       "dec byte [r12]\n"
 #define LEX_DOT         "call print\n"
@@ -93,7 +94,8 @@ int main(int argc, char *argv[])
 	strcat(code_buffer,CODE_HEADER);
 
 	// label counters
-	size_t label_counter = 1;
+	size_t label_counter = 0;
+	int labels[10000] = {0};
 
 	while((buffer = fgetc(fp)) != EOF ){
 		switch (buffer)
@@ -129,16 +131,30 @@ int main(int argc, char *argv[])
 			strcat(code_buffer,label_index);
 			strcat(code_buffer,"\n");
 			free(label_index);
-			label_counter +=1;
 
+			
+			labels[label_counter] = 1;
+			label_counter +=1;
+			
 			break;
 
 		case ']':
 			// itoa
-			label_counter -=1;
-			int length2 = snprintf(NULL,0,"%ld",label_counter);
+
+			// find the nearby unclosed label
+			size_t label_counter_2 = 0;
+
+			for(int i=label_counter-1;i>=0;i--){
+				if (labels[i] == 1) {
+					 label_counter_2 = i;
+					 labels[i] = 0;
+					 break;
+				}
+			}
+	
+			int length2 = snprintf(NULL,0,"%ld",label_counter_2);
 			char *label_index2 = malloc(length2+1);
-			snprintf(label_index2,length2+1,"%ld",label_counter);
+			snprintf(label_index2,length2+1,"%ld",label_counter_2);
 
 			strcat(code_buffer,LEX_RIGHT_BRACKET);
 			strcat(code_buffer,label_index2);
@@ -147,7 +163,6 @@ int main(int argc, char *argv[])
 			strcat(code_buffer,label_index2);
 			strcat(code_buffer,":\n");
 			free(label_index2);
-			
 			
 			break;
 		}
