@@ -7,4 +7,4 @@ main: main.c
 	$(CC) $(CFLAGS) main.c -o bf
 
 clean: 
-	rm -f main bf output.o test_bf
+	rm -f main bf output.o test_bf output.asm

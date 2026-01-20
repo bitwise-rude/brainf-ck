@@ -5,8 +5,8 @@
 #include <sys/wait.h>
 #include <stdbool.h>
 
-#define CODE_LENGTH 100000
-#define MAX_LABELS 100000
+#define CODE_LENGTH 1000000
+#define MAX_LABELS 1000000
 
 #define CODE_HEADER "[bits 64]\nglobal _start\n\
 section .bss\n\
@@ -197,6 +197,15 @@ int main(int argc, char *argv[])
 
 	assemble_bf();
 	link_bf();
+
+	// to delete or not to delete the assembly file is the question
+	if (argc >= 3){
+		if(strcmp(argv[2],"-ca") == 0) {
+			remove("output.asm");
+			remove("output.o");
+		}
+	}
+
 	
 	return 0;
 }
