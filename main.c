@@ -10,7 +10,7 @@
 
 #define CODE_HEADER "[bits 64]\nglobal _start\n\
 section .bss\n\
-tape resb 30000\n\
+tape resb 3000000\n\
 section .text\n\
 print:\n\
     mov rax, 1\n\
@@ -81,7 +81,7 @@ void link_bf(){
 				"ld",
 				"ld",
 				"output.o",
-				"-o", "test_bf",
+				"-o", "output",
 				NULL
 		      );
 		perror("linker failed");

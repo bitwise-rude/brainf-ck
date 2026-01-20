@@ -7,7 +7,7 @@
 global _start
 
 section .bss
-    tape resb 30000 ; actual memory tape
+    tape resb 3000000 ; actual memory tape
 
 section .text
     ; print routine -> prints something to the screen using syscalls
