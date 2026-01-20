@@ -47,6 +47,11 @@ void show_usages_exit(char *reason){
 	exit(1);
 }
 
+void show_compiler_error(int line_no, int char_no, char *message){
+	printf("\t\nError[%d:%d]: %s \n\n",line_no,char_no,message);
+	exit(1);
+}
+
 void assemble_bf(){
 	// call NASM and assemble the code
 
@@ -111,6 +116,9 @@ int main(int argc, char *argv[])
 	// initialize to 0
 	memset(labels,0,MAX_LABELS);
 
+	int line_no = 1;
+	int char_no = 1;
+
 	while((buffer = fgetc(fp)) != EOF ){
 		switch (buffer)
 		{
@@ -158,14 +166,17 @@ int main(int argc, char *argv[])
 
 			// find the nearby unclosed label
 			size_t label_counter_2 = 0;
+			bool found = false;
 
 			for(int i=label_counter-1;i>=0;i--){
 				if (labels[i] == 1) {
 					 label_counter_2 = i;
+					 found = true;
 					 labels[i] = 0;
 					 break;
 				}
 			}
+			if (! found) show_compiler_error(line_no,char_no, "`]` without `[`, Invalid Syntax, Loop ended without a start");
 	
 			int length2 = snprintf(NULL,0,"%ld",label_counter_2);
 			char *label_index2 = malloc(length2+1);
@@ -181,8 +192,17 @@ int main(int argc, char *argv[])
 			free(label_index2);
 			
 			break;
+		
+		case '\n':
+			line_no += 1;
+			break;
 		}
+		char_no += 1;
+
+		
 	}
+	// check for khulla `[`
+	for(int i=label_counter-1;i>=0;i--) if (labels[i] == 1) show_compiler_error(0,0,"One or many loop are not Closed. Couldn't Find `]` for ''[");	
 	fclose(fp);
 	free(labels);
 	
