@@ -6,8 +6,9 @@
 #include <stdbool.h>
 
 #define CODE_LENGTH 100000
+#define MAX_LABELS 100000
 
-#define CODE_HEADER "global _start\n\
+#define CODE_HEADER "[bits 64]\nglobal _start\n\
 section .bss\n\
 tape resb 30000\n\
 section .text\n\
@@ -41,8 +42,7 @@ lea r12, [tape]\n"
 #define LEX_RIGHT_BRACKET "cmp byte [r12],0\njne start_label"
 
 
-void show_usages_exit(char *reason)
-{
+void show_usages_exit(char *reason){
 	printf("\tBrainf*ck\n\nUsages:Brainf*ck <source_file.bf>\n\n%s\n",reason);
 	exit(1);
 }
@@ -90,12 +90,16 @@ int main(int argc, char *argv[])
 {
 	if (argc < 2) show_usages_exit("");
 	
-	// read file how brain
+	// read file 
 	FILE *fp = fopen(argv[1],"r");
 	if (fp == NULL) show_usages_exit("File Not Found");
 
+	// will contain  bf code read from file
 	int  buffer;
+	// Assembly lives here
 	char *code_buffer = (char *) malloc(CODE_LENGTH);
+	if(code_buffer == NULL) show_usages_exit("Couldn't Allocate memory on the heap\n");
+
 	*code_buffer = '\0';
 
 	// combine header
@@ -103,7 +107,9 @@ int main(int argc, char *argv[])
 
 	// label counters
 	size_t label_counter = 0;
-	int labels[10000] = {0};
+	int *labels = (int *) malloc(MAX_LABELS);
+	// initialize to 0
+	memset(labels,0,MAX_LABELS);
 
 	while((buffer = fgetc(fp)) != EOF ){
 		switch (buffer)
@@ -127,20 +133,18 @@ int main(int argc, char *argv[])
 			strcat(code_buffer,LEX_COMMA);
 			break;
 		case '[':
-			// itoa
+			// itoa -> adding labels
 			int length = snprintf(NULL,0,"%ld",label_counter);
 			char *label_index = malloc(length+1);
+			*(label_index+length) = '\0';
 			snprintf(label_index,length+1,"%ld",label_counter);
 			
 			strcat(code_buffer, "start_label");
 			strcat(code_buffer,label_index);
-			strcat(code_buffer,":\n");
-			strcat(code_buffer,LEX_LEFT_BRACKET);
-			strcat(code_buffer,"label");
-
-			
+			strcat(code_buffer,":\n" LEX_LEFT_BRACKET "label");
 			strcat(code_buffer,label_index);
 			strcat(code_buffer,"\n");
+
 			free(label_index);
 
 			
@@ -165,30 +169,29 @@ int main(int argc, char *argv[])
 	
 			int length2 = snprintf(NULL,0,"%ld",label_counter_2);
 			char *label_index2 = malloc(length2+1);
+			*(label_index2+length2) = '\0';
 			snprintf(label_index2,length2+1,"%ld",label_counter_2);
 
 			strcat(code_buffer,LEX_RIGHT_BRACKET);
 			strcat(code_buffer,label_index2);
-			strcat(code_buffer,"\n");
-			strcat(code_buffer,"label");
+			strcat(code_buffer,"\n" "label");
 			strcat(code_buffer,label_index2);
 			strcat(code_buffer,":\n");
+
 			free(label_index2);
 			
 			break;
 		}
 	}
 	fclose(fp);
-	
+	free(labels);
 	
 	// combien footer
 	strcat(code_buffer,CODE_FOOTER);
-	printf("%s",code_buffer);
 
 	// save assembly file
 	FILE *fp2 = fopen("output.asm","w");
 	if(fp2==NULL) show_usages_exit("Output file couldn't be opened");
-	
 	fprintf(fp2,"%s", code_buffer);
 	fclose(fp2);
 
