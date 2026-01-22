@@ -5,7 +5,7 @@
 #include <sys/wait.h>
 #include <stdbool.h>
 
-#define CODE_LENGTH 1000000
+#define CODE_LENGTH 100000000
 #define MAX_LABELS 1000000
 
 #define CODE_HEADER "[bits 64]\nglobal _start\n\
@@ -38,9 +38,8 @@ lea r12, [tape]\n"
 #define LEX_MINUS       "dec byte [r12]\n"
 #define LEX_DOT         "call print\n"
 #define LEX_COMMA		"call input\n"
-#define LEX_LEFT_BRACKET "cmp byte [r12],0\nje "
-#define LEX_RIGHT_BRACKET "cmp byte [r12],0\njne start_label"
-
+#define LEX_LEFT_BRACKET "cmp byte [r12],0\nje end_label%lu\nstart_label%lu:\n"
+#define LEX_RIGHT_BRACKET "cmp byte [r12],0\njne start_label%lu\nend_label%lu:\n"
 
 void show_usages_exit(char *reason){
 	printf("\tBrainf*ck\n\nUsages:Brainf*ck <source_file.bf>\n\n%s\n",reason);
@@ -88,8 +87,14 @@ void link_bf(){
 	}else{
 		wait(NULL);
 	}
-
 }
+
+struct stack_entry{
+	int line_no;
+	int char_no;
+	size_t label_counter;
+};
+
 
 int main(int argc, char *argv[])
 {
@@ -103,18 +108,19 @@ int main(int argc, char *argv[])
 	int  buffer;
 	// Assembly lives here
 	char *code_buffer = (char *) malloc(CODE_LENGTH);
+	char *code_end = code_buffer;
 	if(code_buffer == NULL) show_usages_exit("Couldn't Allocate memory on the heap\n");
 
 	*code_buffer = '\0';
 
 	// combine header
-	strcat(code_buffer,CODE_HEADER);
+	code_end+=sprintf(code_end,CODE_HEADER);
 
 	// label counters
 	size_t label_counter = 0;
-	int *labels = (int *) malloc(MAX_LABELS);
-	// initialize to 0
-	memset(labels,0,MAX_LABELS);
+ 	struct stack_entry *stack = (struct stack_entry *) malloc(MAX_LABELS*sizeof(struct stack_entry));
+	if(stack == NULL) show_usages_exit("Couldn't allocate memory on the heap\n");
+	size_t stacktop=0;
 
 	int line_no = 1;
 	int char_no = 1;
@@ -123,91 +129,50 @@ int main(int argc, char *argv[])
 		switch (buffer)
 		{
 		case '>':
-			strcat(code_buffer,LEX_RIGHT_ANGLE);
+			code_end+=sprintf(code_end,LEX_RIGHT_ANGLE);
 			break;
 		case '<':
-			strcat(code_buffer,LEX_LEFT_ANGLE);
+			code_end+=sprintf(code_end,LEX_LEFT_ANGLE);
 			break;
 		case '+':
-			strcat(code_buffer,LEX_PLUS);
+			code_end+=sprintf(code_end,LEX_PLUS);
 			break;
 		case '-':
-			strcat(code_buffer,LEX_MINUS);
+			code_end+=sprintf(code_end,LEX_MINUS);
 			break;
 		case '.':
-			strcat(code_buffer,LEX_DOT);
+			code_end+=sprintf(code_end,LEX_DOT);
 			break;
 		case ',':
-			strcat(code_buffer,LEX_COMMA);
+			code_end+=sprintf(code_end,LEX_COMMA);
 			break;
 		case '[':
-			// itoa -> adding labels
-			int length = snprintf(NULL,0,"%ld",label_counter);
-			char *label_index = malloc(length+1);
-			*(label_index+length) = '\0';
-			snprintf(label_index,length+1,"%ld",label_counter);
-			
-			strcat(code_buffer, "start_label");
-			strcat(code_buffer,label_index);
-			strcat(code_buffer,":\n" LEX_LEFT_BRACKET "label");
-			strcat(code_buffer,label_index);
-			strcat(code_buffer,"\n");
-
-			free(label_index);
-
-			
-			labels[label_counter] = 1;
-			label_counter +=1;
-			
+			code_end+=sprintf(code_end, LEX_LEFT_BRACKET,label_counter,label_counter);
+			stack[stacktop].line_no=line_no;
+			stack[stacktop].char_no=char_no;
+			stack[stacktop++].label_counter=label_counter++;
 			break;
-
 		case ']':
-			// itoa
-
-			// find the nearby unclosed label
-			size_t label_counter_2 = 0;
-			bool found = false;
-
-			for(int i=label_counter-1;i>=0;i--){
-				if (labels[i] == 1) {
-					 label_counter_2 = i;
-					 found = true;
-					 labels[i] = 0;
-					 break;
-				}
-			}
-			if (! found) show_compiler_error(line_no,char_no, "`]` without `[`, Invalid Syntax, Loop ended without a start");
-	
-			int length2 = snprintf(NULL,0,"%ld",label_counter_2);
-			char *label_index2 = malloc(length2+1);
-			*(label_index2+length2) = '\0';
-			snprintf(label_index2,length2+1,"%ld",label_counter_2);
-
-			strcat(code_buffer,LEX_RIGHT_BRACKET);
-			strcat(code_buffer,label_index2);
-			strcat(code_buffer,"\n" "label");
-			strcat(code_buffer,label_index2);
-			strcat(code_buffer,":\n");
-
-			free(label_index2);
-			
+			if (! stacktop--) show_compiler_error(line_no,char_no, "Unmatched `]`");
+			code_end+=sprintf(code_end,LEX_RIGHT_BRACKET,stack[stacktop].label_counter,stack[stacktop].label_counter);
 			break;
-		
 		case '\n':
 			line_no += 1;
+			char_no = 0;
 			break;
 		}
 		char_no += 1;
-
-		
+		if(code_end>code_buffer+CODE_LENGTH-200) show_usages_exit("Generated program exceeds length limit");
 	}
 	// check for khulla `[`
-	for(int i=label_counter-1;i>=0;i--) if (labels[i] == 1) show_compiler_error(0,0,"One or many loop are not Closed. Couldn't Find `]` for ''[");	
+	if (stacktop--) show_compiler_error(stack[stacktop].line_no,stack[stacktop].char_no,"Unmatched '['");
+
+
 	fclose(fp);
-	free(labels);
+	free(stack);
 	
 	// combien footer
-	strcat(code_buffer,CODE_FOOTER);
+	code_end+=sprintf(code_end,CODE_FOOTER);
 
 	// save assembly file
 	FILE *fp2 = fopen("output.asm","w");
